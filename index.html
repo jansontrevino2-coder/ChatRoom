@@ -3,6 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <title>Chatroom</title>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js"></script>
+
 <style>
   body { background:#111; color:#eee; font-family:Arial; margin:0; }
   #chat { height:80vh; overflow-y:auto; padding:10px; }
@@ -30,7 +35,21 @@
 </div>
 
 <script>
-let ws;
+/* ---------------- FIREBASE CONFIG ---------------- */
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_DOMAIN",
+  databaseURL: "YOUR_DB_URL",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_BUCKET",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+const app = firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+/* ---------------- CHAT LOGIC ---------------- */
 let user = {};
 
 function joinChat() {
@@ -40,26 +59,25 @@ function joinChat() {
 
   if (!user.username) return alert("Username required");
 
-  ws = new WebSocket("ws://localhost:8080");
+  document.getElementById("setup").style.display = "none";
+  document.getElementById("chat").style.display = "block";
+  document.getElementById("inputArea").style.display = "flex";
 
-  ws.onopen = () => {
-    document.getElementById("setup").style.display = "none";
-    document.getElementById("chat").style.display = "block";
-    document.getElementById("inputArea").style.display = "flex";
-  };
-
-  ws.onmessage = event => {
-    const data = JSON.parse(event.data);
+  db.ref("messages").on("child_added", snapshot => {
+    const data = snapshot.val();
     addMessage(data.username, data.pfp, data.text);
-  };
+  });
 }
 
 function sendMsg() {
   const text = document.getElementById("msgInput").value.trim();
   if (!text) return;
 
-  const data = { username: user.username, pfp: user.pfp, text };
-  ws.send(JSON.stringify(data));
+  db.ref("messages").push({
+    username: user.username,
+    pfp: user.pfp,
+    text
+  });
 
   document.getElementById("msgInput").value = "";
 }
