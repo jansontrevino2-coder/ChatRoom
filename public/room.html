@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Room</title>
+  <style>
+    body { background:#111; color:white; font-family:Arial; }
+    #messages { height:70vh; overflow-y:auto; background:#222; padding:10px; border-radius:8px; }
+    .msg { margin:10px 0; }
+    img { width:35px; height:35px; border-radius:50%; vertical-align:middle; }
+  </style>
+</head>
+<body>
+
+<h2 id="roomTitle"></h2>
+
+<div>
+  <input id="username" placeholder="Username">
+  <input id="pfp" type="file">
+  <button onclick="saveProfile()">Save Profile</button>
+</div>
+
+<div id="messages"></div>
+
+<input id="text" placeholder="Message">
+<button onclick="sendMessage()">Send</button>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const roomId = params.get("room");
+
+document.getElementById("roomTitle").innerText = "Room: " + roomId;
+
+let profile = {
+  username: localStorage.getItem("username") || "Guest",
+  pfp: localStorage.getItem("pfp") || ""
+};
+
+function saveProfile() {
+  const name = document.getElementById("username").value;
+  const file = document.getElementById("pfp").files[0];
+
+  profile.username = name;
+  localStorage.setItem("username", name);
+
+  if (file) {
+    fileToBase64(file).then(b64 => {
+      profile.pfp = b64;
+      localStorage.setItem("pfp", b64);
+    });
+  }
+}
+
+async function sendMessage() {
+  const text = document.getElementById("text").value;
+
+  await fetch("/api/sendMessage", {
+    method: "POST",
+    body: JSON.stringify({
+      roomId,
+      username: profile.username,
+      pfp: profile.pfp,
+      text
+    })
+  });
+
+  document.getElementById("text").value = "";
+  loadMessages();
+}
+
+async function loadMessages() {
+  const res = await fetch("/api/getMessages?room=" + roomId);
+  const msgs = await res.json();
+
+  const container = document.getElementById("messages");
+  container.innerHTML = "";
+
+  msgs.forEach(m => {
+    container.innerHTML += `
+      <div class="msg">
+        <img src="${m.pfp}">
+        <b>${m.username}</b>: ${m.text}
+      </div>
+    `;
+  });
+}
+
+function fileToBase64(file) {
+  return new Promise(res => {
+    const reader = new FileReader();
+    reader.onload = () => res(reader.result);
+    reader.readAsDataURL(file);
+  });
+}
+
+setInterval(loadMessages, 1500);
+loadMessages();
+</script>
+
+</body>
+</html>
